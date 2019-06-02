@@ -19,6 +19,14 @@
 #include "lj_vm.h"
 #endif
 
+#include "lj_mcode_spool.h"
+
+#if LJ_ANDROID_LOG_LEVEL > 0
+#include <android/log.h>
+#define LOG_TAG "lj_mcode.c"
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,LOG_TAG,__VA_ARGS__)
+#endif
+
 /* -- OS-specific functions ----------------------------------------------- */
 
 #if LJ_HASJIT || LJ_HASFFI
@@ -110,6 +118,11 @@ static void *mcode_alloc_at(jit_State *J, uintptr_t hint, size_t sz, int prot)
 static void mcode_free(jit_State *J, void *p, size_t sz)
 {
   UNUSED(J);
+#if defined(__ANDROID__) && LJ_ANDROID_MCODE_STATIC_POOL_KB > 0
+  if(lj_release_to_static_pool(p, sz) == 0) {
+	  return;
+  }
+#endif
   munmap(p, sz);
 }
 
@@ -227,6 +240,14 @@ static void *mcode_alloc(jit_State *J, size_t sz)
   uintptr_t target = (uintptr_t)(void *)lj_vm_exit_handler & ~(uintptr_t)0xffff;
 #endif
   const uintptr_t range = (1u << (LJ_TARGET_JUMPRANGE-1)) - (1u << 21);
+
+#if defined(__ANDROID__) && LJ_ANDROID_MCODE_STATIC_POOL_KB > 0
+  void* p = lj_alloc_from_static_pool(sz, MCPROT_GEN);
+  if(p) {
+	  return p;
+  }
+#endif
+
   /* First try a contiguous area below the last one. */
   uintptr_t hint = J->mcarea ? (uintptr_t)J->mcarea - sz : 0;
   int i;
@@ -246,6 +267,9 @@ static void *mcode_alloc(jit_State *J, size_t sz)
     } while (!(hint + sz < range+range));
     hint = target + hint - range;
   }
+#if LJ_ANDROID_LOG_LEVEL >= 1
+  LOGE("%s failed to alloc, hint=0x%x sz=%d range=0x%x target=0x%x", __func__, hint, sz, range, target);
+#endif
   lj_trace_err(J, LJ_TRERR_MCODEAL);  /* Give up. OS probably ignores hints? */
   return NULL;
 }

@@ -71,10 +71,10 @@ CCWARN= -Wall
 # as dynamic mode.
 #
 # Mixed mode creates a static + dynamic library and a statically linked luajit.
-BUILDMODE= mixed
+#BUILDMODE= mixed
 #
 # Static mode creates a static library and a statically linked luajit.
-#BUILDMODE= static
+BUILDMODE= static
 #
 # Dynamic mode creates a dynamic library and a dynamically linked luajit.
 # Note: this executable will only run when the library is installed!
@@ -275,6 +275,10 @@ endif
 endif
 endif
 endif
+endif
+
+ifneq (,$(LJ_ANDROID_MCODE_STATIC_POOL_KB))
+  TARGET_XLIBS+= -lpthread
 endif
 
 ifneq (,$(findstring LJ_TARGET_PS3 1,$(TARGET_TESTARCH)))
@@ -491,7 +495,7 @@ LJCORE_O= lj_gc.o lj_err.o lj_char.o lj_bc.o lj_obj.o lj_buf.o \
 	  lj_lex.o lj_parse.o lj_bcread.o lj_bcwrite.o lj_load.o \
 	  lj_ir.o lj_opt_mem.o lj_opt_fold.o lj_opt_narrow.o \
 	  lj_opt_dce.o lj_opt_loop.o lj_opt_split.o lj_opt_sink.o \
-	  lj_mcode.o lj_snap.o lj_record.o lj_crecord.o lj_ffrecord.o \
+	  lj_mcode.o lj_mcode_spool.o lj_snap.o lj_record.o lj_crecord.o lj_ffrecord.o \
 	  lj_asm.o lj_trace.o lj_gdbjit.o \
 	  lj_ctype.o lj_cdata.o lj_cconv.o lj_ccall.o lj_ccallback.o \
 	  lj_carith.o lj_clib.o lj_cparse.o \
